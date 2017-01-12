@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: wordpress
+  name: wordpress
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+  selector:
+    name: wordpress
+
+---
+
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: wordpress-scaler
+spec:
+  scaleTargetRef:
+    kind: ReplicaSet
+    name: wordpress
+  minReplicas: 5
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
+
+---
+
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+  name: wordpress
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      name: wordpress
+    matchExpressions:
+      - {key: name, operator: In, values: [wordpress]}
+  template:
+    metadata:
+      labels:
+        name: wordpress
+    spec:
+      containers:
+      - name: wordpress
+        image: wordpress
+        ports:
+        - containerPort: 80
+          name: wordpress
+        volumeMounts:
+        - mountPath: /var/www/html
+          name: my-vol                    
+        env:
+          - name: WORDPRESS_DB_PASSWORD
+            value: k8spassword
+          - name: WORDPRESS_DB_USER
+            value: root
+          - name: WORDPRESS_DB_HOST
+            value: mysql
+      volumes:
+        - name: "my-vol"
+          hostPath:
+            path: "/mnt/data/web"            
